@@ -3,6 +3,7 @@
 // TODO: Add lazy loading to go to 100MM checkboxes
 // TODO: paginate requests to fetch just the required number of checkboxes
 // TODO: rewrite the code for better maintenability
+
 <head>
     <script>
         function isBitSet(number, position) {
@@ -40,8 +41,7 @@
                 console.log("received: ", event.data)
                 const ds = new DecompressionStream("gzip");
                 const decompressedData = new Blob([event.data]).stream().pipeThrough(ds);
-                decompressedData.getReader().read()
-                console.log({ decompressedData })
+                // decompressedData.getReader({ mode: "byob" }).read();
 
 
                 new Response(decompressedData).bytes().then(
@@ -80,7 +80,6 @@
             })
 
             document.addEventListener("input", (event) => {
-                console.log({ event })
                 const checkboxId = Number(event.target.id);
                 const status = event.target.checked;
                 console.log({ checkboxId, status })
