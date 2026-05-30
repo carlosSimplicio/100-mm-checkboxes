@@ -27,6 +27,20 @@
 
         }
 
+        function fillCheckBoxPage(message) {
+
+        }
+
+        function findDelimiterIndex(message) {
+            for (let index = 0; index < message.length; index++) {
+                if (message[index] === "?".charCodeAt(0)) {
+                    return index;
+                }
+            }
+
+            return -1;
+        }
+
         document.addEventListener("DOMContentLoaded", (event) => {
             console.log("DOM is fully loaded and parsed. You can now safely manipulate elements.");
 
@@ -37,42 +51,93 @@
                 console.log("Connected");
             })
 
-            websocket.addEventListener("message", (event) => {
-                console.log("received: ", event.data)
-                const ds = new DecompressionStream("gzip");
-                const decompressedData = new Blob([event.data]).stream().pipeThrough(ds);
-                // decompressedData.getReader({ mode: "byob" }).read();
+            websocket.addEventListener("message", async (event) => {
+                try {
+                    console.log(event.data)
+                    // const ds = new DecompressionStream("gzip");
+                    // const decompressedData = new Blob([event.data]).stream().pipeThrough(readable);
+                    // const reader = decompressedData.getReader();
+                    const readable = new Blob([event.data]).stream()
+                    const reader = readable.getReader();
+                    let count = 0;
+                    const elements = document.querySelectorAll("input");
+                    while (true) {
+                        const result = await reader.read();
 
+                        if (result.done) break;
 
-                new Response(decompressedData).bytes().then(
-                    (uint8Array) => {
-                        console.log(uint8Array)
+                        const uint8Array = result.value;
+                        console.log({ uint8Array })
 
-                        if (uint8Array[0] === "I".charCodeAt(0)) {
-                            console.log("Update received")
-                            return updateCheckBox(uint8Array)
+                        if (
+                            uint8Array[0] !== "I".charCodeAt(0) &&
+                            uint8Array[1] !== "X".charCodeAt(0)
+                        ) {
+                            console.log("Failed to indentify protocol")
+                            break;
                         }
 
-                        let count = 0;
-                        const elements = document.querySelectorAll("input");
+                        if (uint8Array[2] !== "P".charCodeAt(0)) {
+                            console.log("Operation not implemented yet")
+                            break;
+                        }
 
-                        for (let i = 0; i < uint8Array.length; i++) {
-                            const number = uint8Array[i]
-                            for (let j = 7; j >= 0; j--) {
-                                const el = elements[count];
-                                if (el) {
-                                    el.id = count;
 
-                                    if (isBitSet(number, j)) {
-                                        el.checked = true;
+                        const len = elements.length;
+                        const delimiterIndex = findDelimiterIndex(uint8Array);
+                        if (delimiterIndex === -1) {
+                            console.log("Could not find delimiter index");
+                            break
+                        }
+
+                        outer:
+                        for (let i = delimiterIndex + 1; i < uint8Array.length; i++) {
+                            const b = uint8Array[i];
+
+                            if (len - count > 8) {
+                                elements[count++].checked = !!(b & 128);
+                                elements[count].id = count;
+                                elements[count++].checked = !!(b & 64);
+                                elements[count].id = count;
+                                elements[count++].checked = !!(b & 32);
+                                elements[count].id = count;
+                                elements[count++].checked = !!(b & 16);
+                                elements[count].id = count;
+                                elements[count++].checked = !!(b & 8);
+                                elements[count].id = count;
+                                elements[count++].checked = !!(b & 4);
+                                elements[count].id = count;
+                                elements[count++].checked = !!(b & 2);
+                                elements[count].id = count;
+                                elements[count++].checked = !!(b & 1);
+                                elements[count].id = count;
+                            } else {
+                                for (let mask = 128; mask > 0; mask >>= 1) {
+                                    if (count >= len) break outer;
+
+                                    const checked = !!(b & mask);
+
+                                    if (el.checked !== checked) {
+                                        el.checked = checked;
                                     }
-                                }
-                                count++;
-                            }
-                        }
-                    }
-                )
 
+                                    count++;
+                                }
+
+                            }
+
+
+                        }
+
+                        // break;
+                        // await new Promise(resolve => {
+                        //     setTimeout(() => resolve(), 10000)
+                        // })
+                    }
+                } catch (err) {
+                    console.log(err)
+                    return
+                }
             })
 
             websocket.addEventListener("close", () => {

@@ -3,6 +3,7 @@ package com.mycompany.app;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.security.NoSuchAlgorithmException;
@@ -20,11 +21,12 @@ public class OneMMCheckboxServer extends WebSocketServer {
 
     private final RedisClient redisClient;
     private final RedisClient redisConsumer;
-    static int port = 6969;
-    static int CHECKBOXES_COUNT = 1_000_000;
+    static int PORT = 6969;
+    static int REDIS_PORT = 6379;
+    static int CHECKBOXES_COUNT = 100_000_000;
     static String CHECKBOXES_KEY = "checkboxes";
     static String CHANNEL = "bitmap-updates";
-    private ParseMessageService parseMessageService;
+    private ProtocolService parseMessageService;
     private CheckboxService checkboxService;
 
     public OneMMCheckboxServer(int port, RedisClient redisClient, RedisClient redisConsumer)
@@ -33,7 +35,7 @@ public class OneMMCheckboxServer extends WebSocketServer {
 
         this.redisClient = redisClient;
         this.redisConsumer = redisClient;
-        this.parseMessageService = new ParseMessageService();
+        this.parseMessageService = new ProtocolService();
         this.checkboxService = new CheckboxService(redisClient, CHECKBOXES_KEY, CHANNEL);
 
         new Thread(() -> {
@@ -42,14 +44,7 @@ public class OneMMCheckboxServer extends WebSocketServer {
                 public void onMessage(String channel, String message) {
                     System.out.println("Received message: " + message + " in channel: " + channel);
 
-                    ByteArrayOutputStream bos = new ByteArrayOutputStream();
-                    try (GZIPOutputStream gzip = new GZIPOutputStream(bos)) {
-                        gzip.write(message.getBytes());
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-
-                    broadcast(bos.toByteArray());
+                    broadcast(gzipMessage(message.getBytes()));
                 }
             }, CHANNEL);
         }).start();
@@ -74,8 +69,9 @@ public class OneMMCheckboxServer extends WebSocketServer {
     @Override
     public void onMessage(WebSocket conn, ByteBuffer blob) {
         try {
-            ParsedMessage parsedMessage = this.parseMessageService.Parse(blob);
-            this.checkboxService.update(parsedMessage, true);
+            System.out.println("Received message: " + new String(blob.array(), StandardCharsets.US_ASCII));
+            // ProtocolDecodedMessage parsedMessage = this.parseMessageService.Parse(blob);
+            // this.checkboxService.update(parsedMessage, true);
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }
@@ -83,18 +79,18 @@ public class OneMMCheckboxServer extends WebSocketServer {
 
     @Override
     public void onOpen(WebSocket conn, ClientHandshake clientHandshake) {
-        conn.send("Successfully connected!");
-        byte[] currentBitmapState = this.redisClient.get(CHECKBOXES_KEY.getBytes());
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        byte[] currentBitmapState = this.redisClient.getrange(
+                CHECKBOXES_KEY.getBytes(),
+                0,
+                2000);
 
-        try (GZIPOutputStream gzip = new GZIPOutputStream(bos)) {
-            gzip.write(currentBitmapState);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        ProtocolPageMessage message = new ProtocolPageMessage(1, currentBitmapState);
+        // conn.send(this.gzipMessage(message.getRaw()));
+        conn.send(message.getRaw());
 
-        conn.send(bos.toByteArray());
-        System.out.println(conn.getRemoteSocketAddress().getAddress().getHostAddress() + " connected successfully");
+        System.out.println(
+                conn.getRemoteSocketAddress().getAddress().getHostAddress()
+                        + " connected successfully");
     }
 
     @Override
@@ -103,19 +99,31 @@ public class OneMMCheckboxServer extends WebSocketServer {
         setTcpNoDelay(true);
     }
 
+    private byte[] gzipMessage(byte[] message) {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        try {
+            GZIPOutputStream gzip = new GZIPOutputStream(bos);
+            gzip.write(message);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return bos.toByteArray();
+    }
+
     public static void main(String[] args) throws IOException, NoSuchAlgorithmException {
 
-        RedisClient jedis = RedisClient.builder().hostAndPort("localhost", 6379).build();
-        RedisClient jedisConsumer = RedisClient.builder().hostAndPort("localhost", 6379).build();
+        RedisClient jedis = RedisClient.builder().hostAndPort("localhost", REDIS_PORT).build();
+        RedisClient jedisConsumer = RedisClient.builder().hostAndPort("localhost", REDIS_PORT).build();
 
         byte[] initialBytes = new byte[CHECKBOXES_COUNT / 8];
-        Arrays.fill(initialBytes, (byte) 0x00);
+        Arrays.fill(initialBytes, (byte) 0xFF);
         jedis.set(CHECKBOXES_KEY.getBytes(), initialBytes);
 
-        OneMMCheckboxServer server = new OneMMCheckboxServer(port, jedis, jedisConsumer);
+        OneMMCheckboxServer server = new OneMMCheckboxServer(PORT, jedis, jedisConsumer);
         server.setReuseAddr(true);
         server.start();
-        System.out.printf("Server started on port %d\n", port);
+        System.out.printf("Server started on port %d\n", PORT);
 
     }
 }
