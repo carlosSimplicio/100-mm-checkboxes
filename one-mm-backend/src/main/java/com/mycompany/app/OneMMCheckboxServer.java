@@ -79,17 +79,15 @@ public class OneMMCheckboxServer extends WebSocketServer {
 
     @Override
     public void onOpen(WebSocket conn, ClientHandshake clientHandshake) {
-        byte[] currentBitmapState = this.redisClient.getrange(
+        byte[] firstPage = this.redisClient.getrange(
                 CHECKBOXES_KEY.getBytes(),
                 0,
                 2000);
 
-        ProtocolPageMessage message = new ProtocolPageMessage(1, currentBitmapState);
+        ProtocolPageMessage message = new ProtocolPageMessage(1, firstPage);
         conn.send(this.gzipMessage(message.getRaw()));
 
-        System.out.println(
-                conn.getRemoteSocketAddress().getAddress().getHostAddress()
-                        + " connected successfully");
+        System.out.println(conn.getRemoteSocketAddress().getAddress().getHostAddress() + " connected successfully");
     }
 
     @Override
