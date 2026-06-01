@@ -27,7 +27,7 @@ public class OneMMCheckboxServer extends WebSocketServer {
     static int PAGE_ITEM_QTD = 2_000;
     static String CHECKBOXES_KEY = "checkboxes";
     static String CHANNEL = "bitmap-updates";
-    private ProtocolService parseMessageService;
+    private ProtocolService protocolService;
     private CheckboxService checkboxService;
 
     public OneMMCheckboxServer(int port, RedisClient redisClient, RedisClient redisConsumer)
@@ -35,9 +35,9 @@ public class OneMMCheckboxServer extends WebSocketServer {
         super(new InetSocketAddress(port));
 
         this.redisClient = redisClient;
-        this.redisConsumer = redisClient;
-        this.parseMessageService = new ProtocolService();
-        this.checkboxService = new CheckboxService(redisClient, CHECKBOXES_KEY, CHANNEL);
+        this.redisConsumer = redisConsumer;
+        this.protocolService = new ProtocolService();
+        this.checkboxService = new CheckboxService(this.redisClient, CHECKBOXES_KEY, CHANNEL);
 
         new Thread(() -> {
             this.redisConsumer.subscribe(new JedisPubSub() {
@@ -71,12 +71,20 @@ public class OneMMCheckboxServer extends WebSocketServer {
     public void onMessage(WebSocket conn, ByteBuffer blob) {
         try {
             System.out.println("Received message: " + new String(blob.array(), StandardCharsets.US_ASCII));
-            ProtocolMessage parsedMessage = this.parseMessageService.parseEncoded(blob);
+            ProtocolMessage parsedMessage = this.protocolService.parseEncoded(blob);
             if (parsedMessage instanceof ProtocolMutatedMessage mutated) {
                 System.out.println("Test parse message: " + new String(mutated.getRaw(), StandardCharsets.US_ASCII)
                         + mutated.value);
 
                 this.checkboxService.mutateCheckboxValue(mutated);
+            }
+
+            if (parsedMessage instanceof ProtocolRequestPageMessage requestedPage) {
+                System.out.println(
+                        "Test parse message: " + new String(requestedPage.getRaw(), StandardCharsets.US_ASCII));
+
+                ProtocolPageMessage pageMessage = this.checkboxService.getPage(requestedPage.page);
+                conn.send(this.gzipMessage(pageMessage.getRaw()));
             }
         } catch (Exception e) {
             System.out.println(e.getMessage());
@@ -85,12 +93,13 @@ public class OneMMCheckboxServer extends WebSocketServer {
 
     @Override
     public void onOpen(WebSocket conn, ClientHandshake clientHandshake) {
-        byte[] firstPage = this.redisClient.getrange(
-                CHECKBOXES_KEY.getBytes(),
-                0, PAGE_ITEM_QTD / 8);
+        try {
+            ProtocolPageMessage message = this.checkboxService.getPage(1);
+            conn.send(this.gzipMessage(message.getRaw()));
 
-        ProtocolPageMessage message = new ProtocolPageMessage(1, firstPage);
-        conn.send(this.gzipMessage(message.getRaw()));
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
 
         System.out.println(conn.getRemoteSocketAddress().getAddress().getHostAddress() + " connected successfully");
     }

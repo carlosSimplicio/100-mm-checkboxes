@@ -6,10 +6,21 @@
 
 <head>
     <script>
-        function isBitSet(number, position) {
-            const mask = 1 << position;
+        let maxPageExhibited = 1;
+        let websocket;
+        let count = 0;
 
-            return (number & mask) !== 0;
+        function requestNextPage() {
+            maxPageExhibited++;
+
+            // IXR1001 - Requisitando a página 1001;
+            const message = new Uint8Array([
+                ..."IXR".split("").map(c => c.charCodeAt(0)),
+                ...maxPageExhibited.toString().split("").map(c => c.charCodeAt(0))
+            ])
+
+            console.log(new TextDecoder().decode(message))
+            websocket.send(message);
         }
 
         function updateCheckBox(message) {
@@ -67,42 +78,54 @@
             }
             const pageNumber = Number.parseInt(new TextDecoder().decode(uint8Array.slice(3, delimiterIndex)));
 
-            let count = 0;
             const checkboxes = [];
             outer:
             for (let i = delimiterIndex + 1; i < uint8Array.length; i++) {
                 const b = uint8Array[i];
                 checkboxes.push(
-                    createCheckbox(count++, b & 128 !== 0)
+                    createCheckbox(count++, (b & 128) !== 0)
                 )
                 checkboxes.push(
-                    createCheckbox(count++, b & 64 !== 0)
+                    createCheckbox(count++, (b & 64) !== 0)
                 )
                 checkboxes.push(
-                    createCheckbox(count++, b & 32 !== 0)
+                    createCheckbox(count++, (b & 32) !== 0)
                 )
                 checkboxes.push(
-                    createCheckbox(count++, b & 16 !== 0)
+                    createCheckbox(count++, (b & 16) !== 0)
                 )
                 checkboxes.push(
-                    createCheckbox(count++, b & 8 !== 0)
+                    createCheckbox(count++, (b & 8) !== 0)
                 )
                 checkboxes.push(
-                    createCheckbox(count++, b & 4 !== 0)
+                    createCheckbox(count++, (b & 4) !== 0)
                 )
                 checkboxes.push(
-                    createCheckbox(count++, b & 2 !== 0)
+                    createCheckbox(count++, (b & 2) !== 0)
                 )
                 checkboxes.push(
-                    createCheckbox(count++, b & 1 !== 0)
+                    createCheckbox(count++, (b & 1) !== 0)
                 )
             }
 
+            const toAppend = checkboxes;
+            if (pageNumber === 1) {
+                toAppend.push(createTitle())
+            }
             const page = createPage(pageNumber);
-            const title = createTitle()
-            page.append(title, ...checkboxes);
+            page.append(...toAppend);
             const mainContainer = document.getElementById("main");
             mainContainer.append(page);
+
+            const observer = new IntersectionObserver((event) => {
+                const { isIntersecting } = event[0];
+                if (isIntersecting) {
+                    console.log("Loading next page");
+                    requestNextPage()
+                }
+            }, { rootMargin: "50%" })
+
+            observer.observe(page)
         }
 
 
@@ -110,7 +133,7 @@
             console.log("DOM is fully loaded and parsed. You can now safely manipulate elements.");
 
             const wsuri = "ws://127.0.0.1:6969"
-            const websocket = new WebSocket(wsuri)
+            websocket = new WebSocket(wsuri)
 
             websocket.addEventListener("open", () => {
                 console.log("Connected");
@@ -167,7 +190,6 @@
                 ]);
 
                 websocket.send(dataToSend)
-
             })
         });
     </script>

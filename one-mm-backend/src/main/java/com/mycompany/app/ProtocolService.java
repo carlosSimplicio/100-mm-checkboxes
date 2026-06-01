@@ -103,6 +103,28 @@ class ProtocolMutatedMessage extends ProtocolMessage {
     }
 }
 
+class ProtocolRequestPageMessage extends ProtocolMessage {
+    public final Integer page;
+
+    public ProtocolRequestPageMessage(Integer page) {
+        super(ProtocolOperation.REQUEST);
+        this.page = page;
+    }
+
+    @Override
+    byte[] getRaw() {
+        // IXR1001 - Requisitando a página 1001;
+
+        String rawHead = this.protocolStart + this.operation.toString() + this.page;
+        byte[] rawHeadBytes = rawHead.getBytes();
+
+        return ByteBuffer
+                .allocate(rawHeadBytes.length)
+                .put(rawHeadBytes)
+                .array();
+    }
+}
+
 public class ProtocolService {
 
     public ProtocolMessage parseEncoded(ByteBuffer blob) throws Exception {
@@ -122,6 +144,10 @@ public class ProtocolService {
             return this.parseMutatedOperation(message);
         }
 
+        if (message[2] == ProtocolOperation.REQUEST.toByte()) {
+            return this.parseRequestPageOperation(message);
+        }
+
         throw new Exception("Failed to identify protocol operation");
     }
 
@@ -130,25 +156,13 @@ public class ProtocolService {
     }
 
     private ProtocolMutatedMessage parseMutatedOperation(byte[] message) throws Exception {
-        int delimiterIndex = -1;
-
-        for (int i = 3; i < message.length; i++) {
-            if (message[i] == '?') {
-                delimiterIndex = i;
-                break;
-            }
-        }
-
-        if (delimiterIndex == -1) {
-            throw new Exception("Failed to find delimiter index");
-        }
-
+        int delimiterIndex = this.findDelimiterIndex(message);
         if (message.length - delimiterIndex != 2) {
             throw new Exception("Failed to parse mutated value, invalid lenght of value");
         }
 
         byte checkboxValueByte = message[delimiterIndex + 1];
-        if (checkboxValueByte !=1 && checkboxValueByte != 0) {
+        if (checkboxValueByte != 1 && checkboxValueByte != 0) {
             throw new Exception("Failed to parse mutated value, not true or false");
         }
 
@@ -163,6 +177,36 @@ public class ProtocolService {
         }
 
         return new ProtocolMutatedMessage(checkboxId, checkboxValue);
+    }
+
+    private ProtocolRequestPageMessage parseRequestPageOperation(byte[] message) throws Exception {
+        String requestPageString = new String(message, 3, message.length - 3, StandardCharsets.US_ASCII);
+
+        int requestPage;
+        try {
+            requestPage = Integer.parseInt(requestPageString);
+        } catch (NumberFormatException error) {
+            throw new Exception("Failed to parse requested page");
+        }
+
+        return new ProtocolRequestPageMessage(requestPage);
+    }
+
+    private int findDelimiterIndex(byte[] message) throws Exception {
+        int delimiterIndex = -1;
+
+        for (int i = 3; i < message.length; i++) {
+            if (message[i] == '?') {
+                delimiterIndex = i;
+                break;
+            }
+        }
+
+        if (delimiterIndex == -1) {
+            throw new Exception("Failed to find delimiter index");
+        }
+
+        return delimiterIndex;
     }
 
     // public ProtocolMessage parseEncodedBefore(ByteBuffer blob) throws Exception {
