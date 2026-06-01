@@ -1,7 +1,6 @@
 package com.mycompany.app;
 
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 
 // Protocol format
 // Identificador: IX
@@ -64,8 +63,8 @@ class ProtocolPageMessage extends ProtocolMessage {
     }
 
     @Override
-    // IXP1000?<Counteúdo> - Enviando a página 1000;
     byte[] getRaw() {
+        // IXP1000?<Counteúdo> - Enviando a página 1000;
         String rawHead = this.protocolStart + this.operation.toString() + this.page + this.delimiter;
         byte[] rawHeadBytes = rawHead.getBytes();
 

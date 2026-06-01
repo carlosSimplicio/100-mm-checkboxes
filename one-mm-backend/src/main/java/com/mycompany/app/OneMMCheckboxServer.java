@@ -85,8 +85,7 @@ public class OneMMCheckboxServer extends WebSocketServer {
                 2000);
 
         ProtocolPageMessage message = new ProtocolPageMessage(1, currentBitmapState);
-        // conn.send(this.gzipMessage(message.getRaw()));
-        conn.send(message.getRaw());
+        conn.send(this.gzipMessage(message.getRaw()));
 
         System.out.println(
                 conn.getRemoteSocketAddress().getAddress().getHostAddress()
@@ -101,8 +100,7 @@ public class OneMMCheckboxServer extends WebSocketServer {
 
     private byte[] gzipMessage(byte[] message) {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        try {
-            GZIPOutputStream gzip = new GZIPOutputStream(bos);
+        try (GZIPOutputStream gzip = new GZIPOutputStream(bos)) {
             gzip.write(message);
         } catch (IOException e) {
             e.printStackTrace();
