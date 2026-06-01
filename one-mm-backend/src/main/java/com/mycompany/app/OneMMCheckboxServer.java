@@ -87,7 +87,7 @@ public class OneMMCheckboxServer extends WebSocketServer {
     public void onOpen(WebSocket conn, ClientHandshake clientHandshake) {
         byte[] firstPage = this.redisClient.getrange(
                 CHECKBOXES_KEY.getBytes(),
-                0, PAGE_ITEM_QTD);
+                0, PAGE_ITEM_QTD / 8);
 
         ProtocolPageMessage message = new ProtocolPageMessage(1, firstPage);
         conn.send(this.gzipMessage(message.getRaw()));
