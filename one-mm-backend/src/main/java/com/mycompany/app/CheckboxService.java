@@ -13,15 +13,7 @@ public class CheckboxService {
         this.publishingChannel = publishingChannel;
     }
 
-    // public void update(ProtocolDecodedMessage message, Boolean publish) {
-    //     this.redisClient.setbit(this.updateKey.getBytes(), message.CheckboxId, message.Value);
-
-    //     if (publish) {
-    //         this.redisClient.publish(this.publishingChannel, message.Raw);
-    //     }
-    // }
-
-    // public void update(ProtocolDecodedMessage message) {
-    //     this.redisClient.setbit(this.updateKey.getBytes(), message.CheckboxId, message.Value);
-    // }
+    public void mutateCheckboxValue(ProtocolMutatedMessage message) {
+        this.redisClient.setbit(this.updateKey.getBytes(), message.checkboxId, message.value);
+    }
 }

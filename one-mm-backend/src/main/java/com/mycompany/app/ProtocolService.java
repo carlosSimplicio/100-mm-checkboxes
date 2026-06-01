@@ -1,6 +1,7 @@
 package com.mycompany.app;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 
 // Protocol format
 // Identificador: IX
@@ -92,7 +93,7 @@ class ProtocolMutatedMessage extends ProtocolMessage {
         // IXM1000?1 - Atualizar a checkbox 1000 para true;
         String rawHead = this.protocolStart + this.operation.toString() + this.checkboxId + this.delimiter;
         byte[] rawHeadBytes = rawHead.getBytes();
-        byte value = (byte)(this.value ? 1 : 0);
+        byte value = (byte) (this.value ? 1 : 0);
 
         return ByteBuffer
                 .allocate(rawHeadBytes.length + 1)
@@ -103,29 +104,66 @@ class ProtocolMutatedMessage extends ProtocolMessage {
 }
 
 public class ProtocolService {
-    public ProtocolService() {
+
+    public ProtocolMessage parseEncoded(ByteBuffer blob) throws Exception {
+        byte[] message = new byte[blob.remaining()];
+        blob.get(message);
+
+        // Validate protocol
+        if (message[0] != 'I' || message[1] != 'X') {
+            throw new Exception("Protocol mismatch");
+        }
+
+        if (message[2] == ProtocolOperation.PAGE.toByte()) {
+            return this.parsePageOperation(message);
+        }
+
+        if (message[2] == ProtocolOperation.MUTATE.toByte()) {
+            return this.parseMutatedOperation(message);
+        }
+
+        throw new Exception("Failed to identify protocol operation");
     }
 
-    // public ProtocolMessage parseEncoded(ByteBuffer blob) throws Exception {
-    // byte[] message = new byte[blob.remaining()];
-    // blob.get(message);
+    private ProtocolPageMessage parsePageOperation(byte[] message) throws Exception {
+        throw new Exception(" Page operation is not implemented");
+    }
 
-    // // Validate protocol
-    // if (message[0] != 'I' || message[1] != 'X') {
-    // throw new Exception("Protocol mismatch");
-    // }
+    private ProtocolMutatedMessage parseMutatedOperation(byte[] message) throws Exception {
+        int delimiterIndex = -1;
 
-    // if (message[2] == ProtocolOperation.PAGE.toByte()) {
-    // return this.parsePageOperation(blob);
-    // }
+        for (int i = 3; i < message.length; i++) {
+            if (message[i] == '?') {
+                delimiterIndex = i;
+                break;
+            }
+        }
 
-    // throw new Exception("Failed to parse message");
-    // }
+        if (delimiterIndex == -1) {
+            throw new Exception("Failed to find delimiter index");
+        }
 
-    // private ProtocolPageMessage parsePageOperation(ByteBuffer blob) throws
-    // Exception {
-    // return null;
-    // }
+        if (message.length - delimiterIndex != 2) {
+            throw new Exception("Failed to parse mutated value, invalid lenght of value");
+        }
+
+        byte checkboxValueByte = message[delimiterIndex + 1];
+        if (checkboxValueByte !=1 && checkboxValueByte != 0) {
+            throw new Exception("Failed to parse mutated value, not true or false");
+        }
+
+        boolean checkboxValue = checkboxValueByte == 1 ? true : false;
+
+        String checkboxIdStr = new String(message, 3, delimiterIndex - 3, StandardCharsets.US_ASCII);
+        int checkboxId;
+        try {
+            checkboxId = Integer.parseInt(checkboxIdStr);
+        } catch (NumberFormatException error) {
+            throw new Exception("Failed to parse checkbox id");
+        }
+
+        return new ProtocolMutatedMessage(checkboxId, checkboxValue);
+    }
 
     // public ProtocolMessage parseEncodedBefore(ByteBuffer blob) throws Exception {
     // byte[] message = new byte[blob.remaining()];
