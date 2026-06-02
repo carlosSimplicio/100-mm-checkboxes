@@ -24,7 +24,6 @@ public class OneMMCheckboxServer extends WebSocketServer {
     static int PORT = 6969;
     static int REDIS_PORT = 6379;
     static int CHECKBOXES_COUNT = 100_000_000;
-    static int PAGE_ITEM_QTD = 2_000;
     static String CHECKBOXES_KEY = "checkboxes";
     static String CHANNEL = "bitmap-updates";
     private ProtocolService protocolService;

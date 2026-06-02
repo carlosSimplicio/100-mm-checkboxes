@@ -1,19 +1,38 @@
-let maxPageExhibited = 1;
 let websocket;
-let count = 0;
+let minShowing = 1;
+let maxShowing = 1;
 
-function requestNextPage() {
-    maxPageExhibited++;
+const colors = ["blue", "red", "green", "yellow", "pink", "cyan", "grey", "purple"]
+
+function requestPage(pageNumber) {
+    if (pageNumber < 1) return;
+
+    minShowing = Math.min(minShowing, pageNumber);
+    maxShowing = Math.max(maxShowing, pageNumber);
 
     // IXR1001 - Requisitando a página 1001;
     const message = new Uint8Array([
         ..."IXR".split("").map(c => c.charCodeAt(0)),
-        ...maxPageExhibited.toString().split("").map(c => c.charCodeAt(0))
+        ...pageNumber.toString().split("").map(c => c.charCodeAt(0))
     ])
 
     console.log(new TextDecoder().decode(message))
     websocket.send(message);
 }
+
+
+function removePage(pageNumber) {
+    if (pageNumber !== maxShowing && pageNumber !== minShowing) return;
+
+
+    if (pageNumber === minShowing) minShowing++;
+    if (pageNumber === maxShowing) maxShowing--;
+
+    const page = document.getElementById("page-" + pageNumber);
+    const mainContainer = document.getElementById("main");
+    mainContainer.removeChild(page);
+}
+
 
 function updateCheckBox(message) {
     const statusDelimiterIndex = message.findIndex(b => b === "S".charCodeAt(0))
@@ -40,9 +59,10 @@ function findDelimiterIndex(message) {
 
 function createPage(pageNumber) {
     const page = document.createElement("div");
-    page.id = pageNumber;
+    page.id = "page-" + pageNumber;
     page.className = "page";
-
+    const random = colors[Math.round(Math.random() * colors.length)]
+    page.style = "background-color: " + random
     return page;
 }
 
@@ -71,6 +91,7 @@ function addPage(uint8Array) {
     const pageNumber = Number.parseInt(new TextDecoder().decode(uint8Array.slice(3, delimiterIndex)));
 
     const checkboxes = [];
+    let count = (pageNumber - 1) * 200;
     outer:
     for (let i = delimiterIndex + 1; i < uint8Array.length; i++) {
         const b = uint8Array[i];
@@ -107,15 +128,29 @@ function addPage(uint8Array) {
     const page = createPage(pageNumber);
     page.append(...toAppend);
     const mainContainer = document.getElementById("main");
-    mainContainer.append(page);
+
+    if (pageNumber === maxShowing) {
+        mainContainer.append(page);
+    } else if (pageNumber === minShowing) {
+        const firstCurrentPage = document.getElementById("page-" + (minShowing + 1))
+        mainContainer.insertBefore(page, firstCurrentPage)
+    }
 
     const observer = new IntersectionObserver((event) => {
-        const { isIntersecting } = event[0];
-        if (isIntersecting) {
-            console.log("Loading next page");
-            requestNextPage()
+        const { target, isVisible, isIntersecting, boundingClientRect } = event[0];
+        const pageId = parseInt(target.id.replace("page-", ""));
+
+        if (isIntersecting && boundingClientRect?.y > 0) {
+            requestPage(pageId + 1);
+        } else if (isIntersecting && boundingClientRect?.y < 0) {
+            requestPage(pageId - 1);
+        } else if (!isIntersecting && boundingClientRect?.y > 0) {
+            removePage(pageId + 1);
+        } else if (!isIntersecting && boundingClientRect?.y < 0) {
+            removePage(pageId - 1);
         }
-    }, { rootMargin: "50%" })
+
+    }, { rootMargin: `${0}px` })
 
     observer.observe(page)
 }
