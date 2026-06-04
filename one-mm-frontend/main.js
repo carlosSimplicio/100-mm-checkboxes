@@ -1,17 +1,16 @@
 const ITEMS_PER_PAGE = 1000;
+const TOTAL_CHECKBOXES = 1_000_000;
+const MAX_PAGE_NUMBER = TOTAL_CHECKBOXES / ITEMS_PER_PAGE;
 const WEBSOCKET_URL = "ws://127.0.0.1:6969"
 
 let websocket;
-let minShowing = 1;
-let maxShowing = 1;
+let minShowing = 0;
+let maxShowing = 0;
 
-const colors = ["blue", "red", "green", "yellow", "pink", "cyan", "grey", "purple"]
+const colors = ["yellow", "pink", "cyan"]
 
 function requestPage(pageNumber) {
-    if (pageNumber < 1) return;
-
-    minShowing = Math.min(minShowing, pageNumber);
-    maxShowing = Math.max(maxShowing, pageNumber);
+    if (pageNumber < 1 || pageNumber > (MAX_PAGE_NUMBER)) return;
 
     // IXR1001 - Requisitando a página 1001;
     const message = new Uint8Array([
@@ -29,11 +28,10 @@ function requestPage(pageNumber) {
 function removePage(pageNumber) {
     if (pageNumber !== maxShowing && pageNumber !== minShowing) return;
 
+    document.querySelectorAll(`[data-page-id='${pageNumber}']`).forEach(el => el.remove())
 
     if (pageNumber === minShowing) minShowing++;
     if (pageNumber === maxShowing) maxShowing--;
-
-    document.querySelectorAll(`[data-page-id='${pageNumber}']`).forEach(el => el.remove())
 }
 
 
@@ -125,10 +123,17 @@ function addPage(uint8Array) {
     }
 
     const mainContainer = document.getElementById("main");
-    console.log({pageNumber, minShowing, maxShowing})
-    if (pageNumber === maxShowing) {
+    // ADJUST THIS SO PAGES GET INSERTED ALWAYS IN THE RIGHT POSITION INDEPENDENT OF RESPONSE ARRIVAL;
+    if (pageNumber === 1 && minShowing === 0) {
+        minShowing++;
+        maxShowing++
+        mainContainer.prepend(...page);
+    }
+    else if (pageNumber > maxShowing) {
+        maxShowing++;
         mainContainer.append(...page);
-    } else if (pageNumber === minShowing) {
+    } else if (pageNumber < minShowing) {
+        minShowing--;
         mainContainer.prepend(...page)
     }
 
@@ -137,19 +142,14 @@ function addPage(uint8Array) {
         const pageId = parseInt(target.dataset.pageId);
 
         if (isIntersecting && boundingClientRect?.y > 0) {
-            console.log("requesting page: ", pageId + 2)
             requestPage(pageId + 2);
         } else if (isIntersecting && boundingClientRect?.y < 0) {
-            console.log("requesting page: ", pageId - 2)
             requestPage(pageId - 2);
         } else if (!isIntersecting && boundingClientRect?.y > 0) {
-            console.log("removing page: ", pageId + 2)
             removePage(pageId + 2);
         } else if (!isIntersecting && boundingClientRect?.y < 0) {
-            console.log("removing page: ", pageId - 2)
             removePage(pageId - 2);
         }
-        console.log({ minShowing, maxShowing })
 
     }, { rootMargin: `${0}px` })
 
@@ -165,6 +165,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
     websocket.addEventListener("open", () => {
         console.log("Connected");
         requestPage(1);
+        requestPage(2);
     })
 
     websocket.addEventListener("message", async (event) => {
