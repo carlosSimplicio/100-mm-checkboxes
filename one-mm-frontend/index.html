@@ -1,19 +1,30 @@
 <!DOCTYPE html>
 <html>
-// TODO: Add lazy loading to go to 100MM checkboxes
-// TODO: paginate requests to fetch just the required number of checkboxes
-// TODO: rewrite the code for better maintenability
 
 <head>
     <script src="main.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
+        :root {
+            --font-size: 72px;
+
+            --checkbox-margin: 8px;
+            --checkbox-width: 20px;
+            --checkbox-total-size: calc(var(--checkbox-width) + 2 * var(--checkbox-margin));
+
+            --title-rows: 1;
+            --title-columns: 28;
+            --title-width: calc(var(--title-columns) * var(--checkbox-total-size));
+            --title-grid-col-start-position: round(up, calc((100vw - var(--title-width))/var(--checkbox-total-size)/2));
+            --title-grid-col-end-position: calc(var(--title-grid-col-start-position) + round(calc(var(--title-width)/var(--checkbox-total-size))));
+            --title-grid-row-start-position: calc((100vh - var(--font-size))/var(--checkbox-total-size)/2);
+            --title-grid-row-end-position: calc(var(--title-grid-row-start-position) + round(up, calc(var(--font-size)*var(--title-rows)/var(--checkbox-total-size))));
+        }
+
         body * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            --checkbox-margin: 8px;
-            --checkbox-width: 20px;
-            --checkbox-total-size: calc(var(--checkbox-width) + 2 * var(--checkbox-margin));
         }
 
         input {
@@ -23,24 +34,65 @@
         }
 
         #title {
-            --title-grid-col-start-position: calc((100vw - 1044px)/var(--checkbox-total-size)/2);
-            --title-grid-col-end-position: calc(var(--title-grid-col-start-position) + round(calc(1044px/var(--checkbox-total-size))));
-            grid-column: var(--title-grid-col-start-position)/var(--title-grid-col-end-position);
-
-            --font-size: 72px;
-            --title-grid-row-start-position: calc((100vh - var(--font-size))/var(--checkbox-total-size)/2);
-            --title-grid-row-end-position: calc(var(--title-grid-row-start-position) + round(calc(var(--font-size)/var(--checkbox-total-size))));
-
-            width: 1044px;
             font-size: var(--font-size);
-            text-wrap: nowrap;
+            grid-column: var(--title-grid-col-start-position)/var(--title-grid-col-end-position);
             grid-row: var(--title-grid-row-start-position)/var(--title-grid-row-end-position);
+            width: var(--title-width);
+
+            text-wrap: nowrap;
+            text-align: center;
+
         }
 
-        .page {
+        #main {
             display: grid;
-            grid-template-columns: repeat(auto-fit, 36px);
-            grid-template-rows: repeat(auto-fit, 36px);
+            grid-template-columns: repeat(auto-fit, var(--checkbox-total-size));
+            grid-template-rows: repeat(auto-fit, var(--checkbox-total-size));
+            justify-content: center;
+        }
+
+        @media (min-width: 768px) and (max-width: 1090px) {
+            :root {
+                --title-columns: 14;
+                --title-rows: 2;
+
+                --checkbox-margin: 8px;
+                --checkbox-width: 24px;
+            }
+
+            #title {
+                text-wrap: wrap;
+            }
+        }
+
+        @media (min-width: 400px) and (max-width: 767px) {
+            :root {
+                --font-size: 48px;
+                --title-columns: 11;
+                --title-rows: 2;
+
+                --checkbox-margin: 8px;
+                --checkbox-width: 24px;
+            }
+
+            #title {
+                text-wrap: wrap;
+            }
+        }
+
+        @media (max-width: 399px) {
+            :root {
+                --font-size: 32px;
+                --title-columns: 7;
+                --title-rows: 2;
+
+                --checkbox-margin: 8px;
+                --checkbox-width: 24px;
+            }
+
+            #title {
+                text-wrap: wrap;
+            }
         }
     </style>
 </head>

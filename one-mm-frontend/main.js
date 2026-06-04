@@ -1,3 +1,6 @@
+const ITEMS_PER_PAGE = 1000;
+const WEBSOCKET_URL = "ws://127.0.0.1:6969"
+
 let websocket;
 let minShowing = 1;
 let maxShowing = 1;
@@ -13,7 +16,9 @@ function requestPage(pageNumber) {
     // IXR1001 - Requisitando a página 1001;
     const message = new Uint8Array([
         ..."IXR".split("").map(c => c.charCodeAt(0)),
-        ...pageNumber.toString().split("").map(c => c.charCodeAt(0))
+        ...pageNumber.toString().split("").map(c => c.charCodeAt(0)),
+        "?".charCodeAt(0),
+        ...ITEMS_PER_PAGE.toString().split("").map(c => c.charCodeAt(0)),
     ])
 
     console.log(new TextDecoder().decode(message))
@@ -28,9 +33,7 @@ function removePage(pageNumber) {
     if (pageNumber === minShowing) minShowing++;
     if (pageNumber === maxShowing) maxShowing--;
 
-    const page = document.getElementById("page-" + pageNumber);
-    const mainContainer = document.getElementById("main");
-    mainContainer.removeChild(page);
+    document.querySelectorAll(`[data-page-id='${pageNumber}']`).forEach(el => el.remove())
 }
 
 
@@ -57,27 +60,22 @@ function findDelimiterIndex(message) {
     return -1;
 }
 
-function createPage(pageNumber) {
-    const page = document.createElement("div");
-    page.id = "page-" + pageNumber;
-    page.className = "page";
-    const random = colors[Math.round(Math.random() * colors.length)]
-    page.style = "background-color: " + random
-    return page;
-}
-
-function createCheckbox(id, checked) {
+function createCheckbox(id, checked, pageNumber) {
     const checkbox = document.createElement("input")
     checkbox.type = "checkbox"
     checkbox.id = id
     checkbox.checked = checked
+    checkbox.dataset.pageId = pageNumber;
+    const selectedColor = colors[(pageNumber - 1) % colors.length]
+    checkbox.style = "accent-color: " + selectedColor
     return checkbox;
 }
 
-function createTitle() {
+function createTitle(pageNumber) {
     const title = document.createElement("h1");
-    title.textContent = "ONE MILLION CHECKBOXES";
+    title.textContent = "100 MILLION CHECKBOXES";
     title.id = "title"
+    title.dataset.pageId = pageNumber;
 
     return title;
 }
@@ -91,79 +89,82 @@ function addPage(uint8Array) {
     const pageNumber = Number.parseInt(new TextDecoder().decode(uint8Array.slice(3, delimiterIndex)));
 
     const checkboxes = [];
-    let count = (pageNumber - 1) * 200;
+    let count = (pageNumber - 1) * ITEMS_PER_PAGE;
     outer:
     for (let i = delimiterIndex + 1; i < uint8Array.length; i++) {
         const b = uint8Array[i];
         checkboxes.push(
-            createCheckbox(count++, (b & 128) !== 0)
+            createCheckbox(count++, (b & 128) !== 0, pageNumber)
         )
         checkboxes.push(
-            createCheckbox(count++, (b & 64) !== 0)
+            createCheckbox(count++, (b & 64) !== 0, pageNumber)
         )
         checkboxes.push(
-            createCheckbox(count++, (b & 32) !== 0)
+            createCheckbox(count++, (b & 32) !== 0, pageNumber)
         )
         checkboxes.push(
-            createCheckbox(count++, (b & 16) !== 0)
+            createCheckbox(count++, (b & 16) !== 0, pageNumber)
         )
         checkboxes.push(
-            createCheckbox(count++, (b & 8) !== 0)
+            createCheckbox(count++, (b & 8) !== 0, pageNumber)
         )
         checkboxes.push(
-            createCheckbox(count++, (b & 4) !== 0)
+            createCheckbox(count++, (b & 4) !== 0, pageNumber)
         )
         checkboxes.push(
-            createCheckbox(count++, (b & 2) !== 0)
+            createCheckbox(count++, (b & 2) !== 0, pageNumber)
         )
         checkboxes.push(
-            createCheckbox(count++, (b & 1) !== 0)
+            createCheckbox(count++, (b & 1) !== 0, pageNumber)
         )
     }
 
-    const toAppend = checkboxes;
+    const page = checkboxes;
     if (pageNumber === 1) {
-        toAppend.push(createTitle())
+        page.push(createTitle(pageNumber))
     }
-    const page = createPage(pageNumber);
-    page.append(...toAppend);
-    const mainContainer = document.getElementById("main");
 
+    const mainContainer = document.getElementById("main");
+    console.log({pageNumber, minShowing, maxShowing})
     if (pageNumber === maxShowing) {
-        mainContainer.append(page);
+        mainContainer.append(...page);
     } else if (pageNumber === minShowing) {
-        const firstCurrentPage = document.getElementById("page-" + (minShowing + 1))
-        mainContainer.insertBefore(page, firstCurrentPage)
+        mainContainer.prepend(...page)
     }
 
     const observer = new IntersectionObserver((event) => {
         const { target, isVisible, isIntersecting, boundingClientRect } = event[0];
-        const pageId = parseInt(target.id.replace("page-", ""));
+        const pageId = parseInt(target.dataset.pageId);
 
         if (isIntersecting && boundingClientRect?.y > 0) {
-            requestPage(pageId + 1);
+            console.log("requesting page: ", pageId + 2)
+            requestPage(pageId + 2);
         } else if (isIntersecting && boundingClientRect?.y < 0) {
-            requestPage(pageId - 1);
+            console.log("requesting page: ", pageId - 2)
+            requestPage(pageId - 2);
         } else if (!isIntersecting && boundingClientRect?.y > 0) {
-            removePage(pageId + 1);
+            console.log("removing page: ", pageId + 2)
+            removePage(pageId + 2);
         } else if (!isIntersecting && boundingClientRect?.y < 0) {
-            removePage(pageId - 1);
+            console.log("removing page: ", pageId - 2)
+            removePage(pageId - 2);
         }
+        console.log({ minShowing, maxShowing })
 
     }, { rootMargin: `${0}px` })
 
-    observer.observe(page)
+    observer.observe(page[0])
 }
 
 
 document.addEventListener("DOMContentLoaded", (event) => {
     console.log("DOM is fully loaded and parsed. You can now safely manipulate elements.");
 
-    const wsuri = "ws://127.0.0.1:6969"
-    websocket = new WebSocket(wsuri)
+    websocket = new WebSocket(WEBSOCKET_URL)
 
     websocket.addEventListener("open", () => {
         console.log("Connected");
+        requestPage(1);
     })
 
     websocket.addEventListener("message", async (event) => {
