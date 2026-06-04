@@ -13,7 +13,7 @@ import java.nio.charset.StandardCharsets;
 // Delimitador: ?
 // Exemplos: 
 // IXP1000?<Counteũdo> - Enviando a página 1000;
-// IXR1001 - Requisitando a página 1001;
+// IXR1001?200- Requisitando a página 1001, caso sejam 200 items por página;
 // IXM1000?1 - Atualizar a checkbox 1000 para true;
 // IXM1000?0 - Atualizar a checkbox 1000 para false;
 // IXU1000?1 - Notificação de que a checkbox 1000 foi atualizada para verdadeiro
@@ -105,17 +105,20 @@ class ProtocolMutatedMessage extends ProtocolMessage {
 
 class ProtocolRequestPageMessage extends ProtocolMessage {
     public final Integer page;
+    public final Integer itemsPerPage;
 
-    public ProtocolRequestPageMessage(Integer page) {
+    public ProtocolRequestPageMessage(Integer page, Integer itemsPerPage) {
         super(ProtocolOperation.REQUEST);
         this.page = page;
+        this.itemsPerPage = itemsPerPage;
     }
 
     @Override
     byte[] getRaw() {
         // IXR1001 - Requisitando a página 1001;
 
-        String rawHead = this.protocolStart + this.operation.toString() + this.page;
+        String rawHead = this.protocolStart + this.operation.toString() + this.page + this.delimiter
+                + this.itemsPerPage;
         byte[] rawHeadBytes = rawHead.getBytes();
 
         return ByteBuffer
@@ -180,16 +183,31 @@ public class ProtocolService {
     }
 
     private ProtocolRequestPageMessage parseRequestPageOperation(byte[] message) throws Exception {
-        String requestPageString = new String(message, 3, message.length - 3, StandardCharsets.US_ASCII);
+        int delimiterIndex = this.findDelimiterIndex(message);
+        if (message.length == delimiterIndex + 1) {
+            throw new Exception("Failed to parsed requested page, items per page not sent");
+        }
+
+        String requestPageString = new String(message, 3, delimiterIndex - 3, StandardCharsets.US_ASCII);
 
         int requestPage;
         try {
             requestPage = Integer.parseInt(requestPageString);
         } catch (NumberFormatException error) {
-            throw new Exception("Failed to parse requested page");
+            throw new Exception("Failed to parse requested page, invalid page number");
         }
 
-        return new ProtocolRequestPageMessage(requestPage);
+        String itemsPerPageString = new String(message, delimiterIndex + 1, message.length - delimiterIndex - 1,
+                StandardCharsets.US_ASCII);
+
+        int itemsPerPage;
+        try {
+            itemsPerPage = Integer.parseInt(itemsPerPageString);
+        } catch (NumberFormatException error) {
+            throw new Exception("Failed to parse requested page, invalid items per page");
+        }
+
+        return new ProtocolRequestPageMessage(requestPage, itemsPerPage);
     }
 
     private int findDelimiterIndex(byte[] message) throws Exception {

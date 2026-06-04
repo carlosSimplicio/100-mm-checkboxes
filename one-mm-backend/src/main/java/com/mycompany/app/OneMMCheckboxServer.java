@@ -82,7 +82,9 @@ public class OneMMCheckboxServer extends WebSocketServer {
                 System.out.println(
                         "Test parse message: " + new String(requestedPage.getRaw(), StandardCharsets.US_ASCII));
 
-                ProtocolPageMessage pageMessage = this.checkboxService.getPage(requestedPage.page);
+                ProtocolPageMessage pageMessage = this.checkboxService.getPage(requestedPage.page,
+                        requestedPage.itemsPerPage);
+
                 conn.send(this.gzipMessage(pageMessage.getRaw()));
             }
         } catch (Exception e) {
@@ -92,14 +94,6 @@ public class OneMMCheckboxServer extends WebSocketServer {
 
     @Override
     public void onOpen(WebSocket conn, ClientHandshake clientHandshake) {
-        try {
-            ProtocolPageMessage message = this.checkboxService.getPage(1);
-            conn.send(this.gzipMessage(message.getRaw()));
-
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-        }
-
         System.out.println(conn.getRemoteSocketAddress().getAddress().getHostAddress() + " connected successfully");
     }
 

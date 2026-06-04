@@ -6,7 +6,6 @@ public class CheckboxService {
     private final RedisClient redisClient;
     private final String checkboxesKey;
     private final String publishingChannel;
-    static int PAGE_ITEM_QTD = 200;
 
     public CheckboxService(RedisClient redisClient, String checkboxesKey, String publishingChannel) {
         this.redisClient = redisClient;
@@ -20,12 +19,12 @@ public class CheckboxService {
         System.out.println("Checkbox ID: " + message.checkboxId + "value: " + bit);
     }
 
-    public ProtocolPageMessage getPage(int pageNumber) throws Exception {
+    public ProtocolPageMessage getPage(int pageNumber, int itemsPerPage) throws Exception {
         if (pageNumber < 1) {
             throw new Exception("Invalid page number");
         }
-        int startIndex = ((pageNumber - 1) * PAGE_ITEM_QTD) / 8;
-        int endIndex = (pageNumber * PAGE_ITEM_QTD / 8) - 1;
+        int startIndex = ((pageNumber - 1) * itemsPerPage) / 8;
+        int endIndex = (pageNumber * itemsPerPage / 8) - 1;
         System.out.println("Start: " + startIndex + ", End: " + endIndex);
         byte[] pageContent = this.redisClient.getrange(
                 checkboxesKey.getBytes(),
