@@ -36,10 +36,15 @@ function removePage(pageNumber) {
 
 
 function updateCheckBox(message) {
-    const statusDelimiterIndex = message.findIndex(b => b === "S".charCodeAt(0))
-    const checkboxId = message.slice(3, statusDelimiterIndex);
+    const delimiterIndex = findDelimiterIndex(message);
+    if (delimiterIndex === -1) {
+        console.log("Could not find delimiter index");
+        return;
+    }
+
+    const checkboxId = message.slice(3, delimiterIndex);
     const checkboxIdDecoded = new TextDecoder().decode(checkboxId);
-    const checked = message[statusDelimiterIndex + 1];
+    const checked = message[delimiterIndex + 1];
 
     const el = document.getElementById(checkboxIdDecoded);
     if (el) {
@@ -185,6 +190,11 @@ document.addEventListener("DOMContentLoaded", (event) => {
                     uint8Array[1] !== "X".charCodeAt(0)
                 ) {
                     console.log("Failed to indentify protocol")
+                    break;
+                }
+
+                if (uint8Array[2] === "U".charCodeAt(0)) {
+                    updateCheckBox(uint8Array);
                     break;
                 }
 

@@ -76,6 +76,10 @@ public class OneMMCheckboxServer extends WebSocketServer {
                         + mutated.value);
 
                 this.checkboxService.mutateCheckboxValue(mutated);
+
+                ProtocolCheckboxUpdateMessage udpateMessage = new ProtocolCheckboxUpdateMessage(mutated.checkboxId,
+                        mutated.value);
+                this.broadcast(this.gzipMessage(udpateMessage.getRaw()));
             }
 
             if (parsedMessage instanceof ProtocolRequestPageMessage requestedPage) {

@@ -103,6 +103,31 @@ class ProtocolMutatedMessage extends ProtocolMessage {
     }
 }
 
+class ProtocolCheckboxUpdateMessage extends ProtocolMessage {
+    public final Integer checkboxId;
+    public final boolean value;
+
+    public ProtocolCheckboxUpdateMessage(Integer checkboxId, boolean value) {
+        super(ProtocolOperation.UPDATE);
+        this.checkboxId = checkboxId;
+        this.value = value;
+    }
+
+    @Override
+    byte[] getRaw() {
+        // IXU1000?1 - Notificação de que a checkbox 1000 foi atualizada para verdadeiro
+        String rawHead = this.protocolStart + this.operation.toString() + this.checkboxId + this.delimiter;
+        byte[] rawHeadBytes = rawHead.getBytes();
+        byte value = (byte) (this.value ? 1 : 0);
+
+        return ByteBuffer
+                .allocate(rawHeadBytes.length + 1)
+                .put(rawHeadBytes)
+                .put(value)
+                .array();
+    }
+}
+
 class ProtocolRequestPageMessage extends ProtocolMessage {
     public final Integer page;
     public final Integer itemsPerPage;
