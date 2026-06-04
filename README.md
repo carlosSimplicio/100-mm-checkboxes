@@ -1,4 +1,4 @@
-Just a simple project.
+Just a simple project for fun.
 
 100M checkboxes that can be simultaneously checked and unchecked by everyone. Every user see what the other is doing.
 
