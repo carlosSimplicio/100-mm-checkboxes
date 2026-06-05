@@ -4,10 +4,10 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.mycompany.app</groupId>
-  <artifactId>one-mm-backend</artifactId>
+  <artifactId>alota-checkboxes-backend</artifactId>
   <version>1.0-SNAPSHOT</version>
 
-  <name>one-mm-backend</name>
+  <name>alota-checkboxes-backend</name>
   <!-- FIXME change it to the project's website -->
   <url>http://www.example.com</url>
 
